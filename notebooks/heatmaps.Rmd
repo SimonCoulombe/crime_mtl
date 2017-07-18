@@ -1,0 +1,86 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+#https://rpubs.com/bhaskarvk/leaflet-heat
+
+
+#devtools::install_github('rstudio/leaflet')
+#devtools::install_github('bhaskarvk/leaflet.extras')
+
+#install.packages("leaflet")
+#install.packages("leaflet.extras")
+library(tidyverse)
+library(stringr)
+library(leaflet)
+library(leaflet.extras)
+library(magrittr)
+library(readr)
+library(lubridate)
+mycsv <-read.csv("../data/raw/interventionscitoyendo.csv")
+mycsv <- mycsv %>% 
+  mutate(
+    DATE = as.character(DATE),
+    date = as.Date(str_sub(DATE,start=1,10)),
+    year = isoyear(date))
+leaflet(mycsv %>% filter (CATEGORIE == "Méfait", LAT != 1)) %>% 
+  addProviderTiles(providers$Thunderforest.Transport) %>%
+  addHeatmap(lng = ~LONG, lat = ~LAT,
+             blur = 20, max = 50, radius = 15)
+
+
+```
+
+```{r}
+
+london.crimes.files <- Sys.glob(
+  paste0(system.file('examples/data/London-Crimes', package='leaflet.extras'),
+         '/*/*-city-of-london-street.csv.zip'))
+
+london.crimes <- suppressMessages(
+  purrr::map(
+    london.crimes.files,
+    ~readr::read_csv(.) %>%
+      dplyr::select(Latitude, Longitude) %>%
+      dplyr::filter(!is.na(Latitude))) %>%
+  magrittr::set_names(basename(Sys.glob(
+    paste0(system.file('examples/data/London-Crimes', package='leaflet.extras'),
+           '/2016*')))))
+
+leaf <- leaflet() %>%
+  addProviderTiles(providers$CartoDB.Positron)
+
+purrr::walk(
+  names(london.crimes),
+  function(month) {
+    leaf <<- leaf %>%
+      addHeatmap(
+        data = london.crimes[[month]],
+        layerId = month, group = month,
+        lng=~Longitude, lat=~Latitude,
+        blur = 20, max = 0.05, radius = 15)
+  })
+
+
+leaf %>%
+  setView(-0.094106, 51.515, 14) %>%
+  addLayersControl(
+    baseGroups = names(london.crimes),
+    options = layersControlOptions(collapsed = FALSE)
+  )
+```
+
+```{r}
+
+#readr::read_csv a un trouble d'encodage..
+
+mycsv2 <-readr::read_csv("../data/raw/interventionscitoyendo.csv")
+
+#guess_encoding("../data/raw/interventionscitoyendo.csv", n_max = 100000, threshold = 0.2)
+
+mycsv2 %>% distinct(CATEGORIE)
+
+```
+
